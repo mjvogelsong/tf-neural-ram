@@ -63,13 +63,17 @@ class Model(object):
             for step in xrange(self.max_minibatches):
                 start_time = time.time()
 
-                feed_dict = self._fill_feed_dict(self.task, input_pl, targets_pl)
+                feed_dict = \
+                    self._fill_feed_dict(self.task, input_pl, targets_pl)
 
-                _, loss_value, mem_value, f_value = sess.run([train_op, loss, self.BIGM_memory, f], feed_dict=feed_dict)
+                _, loss_value, mem_value, f_value = \
+                    sess.run([train_op, loss, self.BIGM_memory, f],
+                        feed_dict=feed_dict)
                 duration = time.time() - start_time
 
                 if step % self.report_interval == 0:
-                    print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
+                    print('Step %d: loss = %.2f (%.3f sec)' %
+                        (step, loss_value, duration))
                     print("input_pl: %s" % feed_dict[input_pl])
                     print("targets_pl: %s" % feed_dict[targets_pl])
                     print("BIGM: %s" % mem_value)
@@ -160,9 +164,11 @@ class Model(object):
         """
         Initialize the placeholders for inputs and target memory traces.
         """
-        input_data = tf.placeholder(tf.float32, shape=(self.M_num_ints, self.M_num_ints),
+        input_data = tf.placeholder(tf.float32,
+            shape=(self.M_num_ints, self.M_num_ints),
             name="input_pl")
-        target_data = tf.placeholder(tf.float32, shape=(self.M_num_ints, self.M_num_ints),
+        target_data = tf.placeholder(tf.float32,
+            shape=(self.M_num_ints, self.M_num_ints),
             name="targets_pl")
         return input_data, target_data
 
@@ -173,12 +179,16 @@ class Model(object):
         # Add a scalar summary for the snapshot loss.
         tf.scalar_summary(loss.op.name, loss)
         # Create the gradient descent optimizer with the given learning rate.
-        optimizer = tf.train.AdamOptimizer(learning_rate, name="adam_optimizer")
+        optimizer = tf.train.AdamOptimizer(learning_rate,
+            name="adam_optimizer")
         # Create a variable to track the global step.
         global_step = tf.Variable(0, name='global_step', trainable=False)
         # Use the optimizer to apply the gradients that minimize the loss
-        # (and also increment the global step counter) as a single training step.
-        train_op = optimizer.minimize(loss, global_step=global_step, name="train_op")
+        # (and also increment the global step counter)
+        # as a single training step.
+        train_op = optimizer.minimize(loss,
+            global_step=global_step,
+            name="train_op")
         return train_op
 
     def _intermediate_controller(self, register_output):
@@ -189,7 +199,8 @@ class Model(object):
             name="interpreted_registers")
 
         with tf.name_scope("h1"):
-            w = tf.Variable(tf.truncated_normal([self.R_num_registers, self.num_h1_units],
+            w = tf.Variable(tf.truncated_normal([self.R_num_registers,
+                self.num_h1_units],
                 stddev=1.0 / math.sqrt(float(self.R_num_registers))),
                 name="w")
             b = tf.Variable(tf.zeros([self.num_h1_units]),
@@ -198,28 +209,34 @@ class Model(object):
 
         with tf.name_scope("a"):
             w = tf.Variable(tf.truncated_normal(
-                [self.num_h1_units, (self.R_num_registers + self.Q_num_modules)],
+                [self.num_h1_units,
+                (self.R_num_registers + self.Q_num_modules)],
                 stddev=1.0 / math.sqrt(float(self.num_h1_units))),
                 name="w")
-            b = tf.Variable(tf.zeros([(self.R_num_registers + self.Q_num_modules)]),
+            b = tf.Variable(tf.zeros([(self.R_num_registers + \
+                self.Q_num_modules)]),
                 name="b")
             logit_a = tf.matmul(h1, w) + b
 
         with tf.name_scope("b"):
             w = tf.Variable(tf.truncated_normal(
-                [self.num_h1_units, (self.R_num_registers + self.Q_num_modules)],
+                [self.num_h1_units,
+                (self.R_num_registers + self.Q_num_modules)],
                 stddev=1.0 / math.sqrt(float(self.num_h1_units))),
                 name="w")
-            b = tf.Variable(tf.zeros([(self.R_num_registers + self.Q_num_modules)]),
+            b = tf.Variable(tf.zeros([(self.R_num_registers + \
+                self.Q_num_modules)]),
                 name="b")
             logit_b = tf.matmul(h1, w) + b
 
         with tf.name_scope("c"):
             w = tf.Variable(tf.truncated_normal(
-                [self.num_h1_units, (self.R_num_registers + self.Q_num_modules)],
+                [self.num_h1_units,
+                (self.R_num_registers + self.Q_num_modules)],
                 stddev=1.0 / math.sqrt(float(self.num_h1_units))),
                 name="w")
-            b = tf.Variable(tf.zeros([(self.R_num_registers + self.Q_num_modules)]),
+            b = tf.Variable(tf.zeros([(self.R_num_registers + \
+                self.Q_num_modules)]),
                 name="b")
             logit_c = tf.matmul(h1, w) + b
 
@@ -249,10 +266,13 @@ class Model(object):
             for mod_idx in xrange(self.Q_num_modules):
                 with tf.variable_scope("controller") as scope:
                     scope.reuse_variables()
-                    a, b, _, _ = self._intermediate_controller(self.r_registers)
-                    zero_padding = tf.zeros([self.Q_num_modules - mod_idx, self.M_num_ints],
+                    a, b, _, _ = \
+                        self._intermediate_controller(self.r_registers)
+                    zero_padding = tf.zeros([self.Q_num_modules - mod_idx,
+                        self.M_num_ints],
                         name="zero_padding")
-                    local_memory_padded = tf.concat(0, [local_memory, zero_padding],
+                    local_memory_padded = tf.concat(0,
+                        [local_memory, zero_padding],
                         name="local_memory_padded")
                     o_i = self._module_function(mod_idx,
                         tf.matmul(tf.transpose(local_memory_padded),
@@ -261,27 +281,34 @@ class Model(object):
                         tf.matmul(tf.transpose(local_memory_padded),
                             tf.transpose(tf.nn.softmax(b)),
                             name="local_mult_b"))
-                    local_memory = tf.concat(0, [local_memory, tf.transpose(o_i)])
+                    local_memory = tf.concat(0,
+                        [local_memory, tf.transpose(o_i)])
 
             for reg_idx in xrange(self.R_num_registers):
                 with tf.variable_scope("controller") as scope:
                     scope.reuse_variables()
-                    _, _, c, _ = self._intermediate_controller(self.r_registers)
-                    r_i = tf.matmul(tf.transpose(local_memory), tf.transpose(tf.nn.softmax(c)))
+                    _, _, c, _ = \
+                        self._intermediate_controller(self.r_registers)
+                    r_i = tf.matmul(tf.transpose(local_memory),
+                        tf.transpose(tf.nn.softmax(c)))
                     if reg_idx == 0:
                         temp_r_registers = tf.transpose(r_i)
                     else:
-                        temp_r_registers = tf.concat(0, [temp_r_registers, tf.transpose(r_i)])
+                        temp_r_registers = tf.concat(0,
+                            [temp_r_registers, tf.transpose(r_i)])
 
             _, _, _, f = self._intermediate_controller(self.r_registers)
             self.r_registers.assign(temp_r_registers)
             with tf.name_scope("loss"):
                 if step == 0:
                     p.append(f)
-                    loss = -p[step] * tf.log(tf.reduce_sum(labels_pl * self.BIGM_memory))
+                    loss = -p[step] * \
+                        tf.log(tf.reduce_sum(labels_pl * self.BIGM_memory))
                 else:
                     p.append((1.0 - p[step-1]) * f)
-                    loss = tf.sub(loss, p[step] * tf.log(tf.reduce_sum(labels_pl * self.BIGM_memory)),
+                    loss = tf.sub(loss,
+                        p[step] * tf.log(tf.reduce_sum(labels_pl * \
+                            self.BIGM_memory)),
                         name="loss")
 
             '''
@@ -332,6 +359,7 @@ class Model(object):
         """
         J_ones = tf.ones([self.M_num_ints, 1])
         self.BIGM_memory = \
-            tf.nn.softmax((tf.matmul(J_ones - p_pointer, tf.transpose(J_ones)) * self.BIGM_memory) + \
-            tf.matmul(p_pointer, tf.transpose(a_value)))
+            tf.nn.softmax((tf.matmul(J_ones - p_pointer,
+                tf.transpose(J_ones)) * self.BIGM_memory) + \
+                tf.matmul(p_pointer, tf.transpose(a_value)))
         return tf.ones([self.M_num_ints, 1], name="o") / self.M_num_ints

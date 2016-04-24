@@ -32,7 +32,7 @@ flags.DEFINE_integer("T_max_timesteps",
     10,
     "Max number of time steps for individual computation")
 flags.DEFINE_integer("report_interval",
-    10,
+    1,
     "Report results at this epoch interval")
 flags.DEFINE_integer("checkpoint_interval",
     50,
@@ -53,7 +53,7 @@ flags.DEFINE_integer("Q_num_modules",
     2,
     "Number of compute modules")
 flags.DEFINE_integer("max_minibatches",
-    1,
+    4,
     "Maximum number of minibatches to run")
 
 FLAGS = flags.FLAGS

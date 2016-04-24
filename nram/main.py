@@ -60,13 +60,14 @@ FLAGS = flags.FLAGS
 
 
 def main(_):
+    print("Flags:")
     pprint.PrettyPrinter().pprint(FLAGS.__flags)
-    '''
+
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
     if not os.path.exists(FLAGS.sample_dir):
         os.makedirs(FLAGS.sample_dir)
-    '''
+
     m = model.Model(FLAGS)
 
     if FLAGS.is_train:

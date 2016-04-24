@@ -4,6 +4,8 @@ import time
 import tensorflow as tf
 import numpy as np
 
+from nram import dataset, tasks
+
 # pylint: disable=E1103
 class Model(object):
     def __init__(self, flags):
@@ -20,29 +22,30 @@ class Model(object):
         self.Q_num_modules = flags.Q_num_modules
         self.T_max_timesteps = flags.T_max_timesteps
 
+        # This is temporary while I'm testing ...
+        self.task = tasks.Access()
+
     def _build(self):
+        """
+        Initialize the memory and registers.
+        """
+        # Holds the temporary memory staged in the registers
         self.r_registers = tf.get_variable("r_registers",
             [self.R_num_registers, self.M_num_ints],
             initializer=tf.constant_initializer(1.0/self.M_num_ints))
+
+        # Holds the global memory.
+        # This is where we'll insert input, and read the output
+        # of the learned algorithm.
         self.BIGM_memory = tf.get_variable("BIGM_memory",
             [self.M_num_ints, self.M_num_ints],
             initializer=tf.constant_initializer(1.0/self.M_num_ints))
 
     def train(self):
-        data_sets = np.ones([self.M_num_ints, self.M_num_ints]) / self.M_num_ints
-        data_sets[0] = np.zeros([self.M_num_ints])
-        data_sets[0][2] = 1.0
-        data_sets[1] = np.zeros([self.M_num_ints])
-        data_sets[1][1] = 1.0
-        targets = np.ones([self.M_num_ints, self.M_num_ints]) / self.M_num_ints
-        targets[0] = np.zeros([self.M_num_ints])
-        targets[1] = np.zeros([self.M_num_ints])
-        targets[2] = np.zeros([self.M_num_ints])
-        targets[0][2] = 1.0
-        targets[1][1] = 1.0
-        targets[2][2] = 1.0
-        print("data_sets: %s" % data_sets)
-        print("targets: %s" % targets)
+        """
+        Train the neural RAM by feeding the input matrices into the
+        BIGM_memory.
+        """
         with tf.Graph().as_default():
             print("Building graph ...")
             self._build()
@@ -59,17 +62,16 @@ class Model(object):
             print("Training ...")
             for step in xrange(self.max_minibatches):
                 start_time = time.time()
-                #feed_dict = self._fill_feed_dict(data_sets.train, input_pl, targets_pl)
 
-                feed_dict = {
-                    input_pl: data_sets,
-                    targets_pl: targets
-                }
+                feed_dict = self._fill_feed_dict(self.task, input_pl, targets_pl)
+
                 _, loss_value, mem_value, f_value = sess.run([train_op, loss, self.BIGM_memory, f], feed_dict=feed_dict)
                 duration = time.time() - start_time
 
                 if step % self.report_interval == 0:
                     print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
+                    print("input_pl: %s" % feed_dict[input_pl])
+                    print("targets_pl: %s" % feed_dict[targets_pl])
                     print("BIGM: %s" % mem_value)
                     print("f: %s" % f_value)
                     '''
@@ -113,8 +115,11 @@ class Model(object):
     def load(self, sess, save_path):
         self.saver.restore(sess, save_path)
 
-
     def _evaluation(self, logits, labels):
+        """
+        Evaluate the memory to see if the highest probability
+        density is on the correct integer.
+        """
         correct = tf.nn.in_top_k(logits, labels, 1)
         return tf.reduce_sum(tf.cast(correct, tf.int32))
 
@@ -123,8 +128,10 @@ class Model(object):
                 input_placeholder,
                 targets_placeholder,
                 data_set):
-        # And run one epoch of eval.
-        true_count = 0  # Counts the number of correct predictions.
+        """
+        Run one epoch of evaluation
+        """
+        true_count = 0
         steps_per_epoch = data_set.num_examples // self.batch_size
         num_examples = steps_per_epoch * self.batch_size
         for _ in xrange(steps_per_epoch):
@@ -136,17 +143,23 @@ class Model(object):
         print('  Num examples: %d  Num correct: %d  Precision @ 1: %0.04f' %
             (num_examples, true_count, precision))
 
-    def _fill_feed_dict(self, data_set, input_pl, targets_pl):
-        # Create the feed_dict for the placeholders filled with the next
-        # `batch size ` examples.
-        input_feed, targets_feed = data_set.next_batch(self.batch_size)
+    def _fill_feed_dict(self, task, input_pl, targets_pl):
+        """
+        Create the feed_dict for the placeholders filled with the next
+        `batch size ` examples.
+        """
+        input_feed, targets_feed = dataset.next_batch(self.M_num_ints,
+            self.batch_size, task)
         feed_dict = {
-          input_pl: input_feed,
-          targets_pl: targets_feed,
+          input_pl: input_feed[0],
+          targets_pl: targets_feed[0],
         }
         return feed_dict
 
     def _placeholder_inputs(self, batch_size):
+        """
+        Initialize the placeholders for inputs and target memory traces.
+        """
         input_data = tf.placeholder(tf.float32, shape=(self.M_num_ints, self.M_num_ints),
             name="input_pl")
         target_data = tf.placeholder(tf.float32, shape=(self.M_num_ints, self.M_num_ints),
@@ -154,6 +167,9 @@ class Model(object):
         return input_data, target_data
 
     def _training(self, loss, learning_rate):
+        """
+        Prepare the tensorflow training Op with Adam.
+        """
         # Add a scalar summary for the snapshot loss.
         tf.scalar_summary(loss.op.name, loss)
         # Create the gradient descent optimizer with the given learning rate.
@@ -166,6 +182,9 @@ class Model(object):
         return train_op
 
     def _intermediate_controller(self, register_output):
+        """
+        Trainable model with a, b, c, and f outputs.
+        """
         inputs = tf.transpose(self._interpret_register(register_output),
             name="interpreted_registers")
 
@@ -217,6 +236,10 @@ class Model(object):
         return logit_a, logit_b, logit_c, f
 
     def _controller(self, input_pl, labels_pl):
+        """
+        Controller module integrated into the overall
+        Neural RAM.
+        """
         # The inputs are placed into the Memory
         self._init_memory(input_pl)
         p = []
@@ -269,24 +292,44 @@ class Model(object):
             return loss, f
 
     def _init_memory(self, int_array):
+        """
+        Feed the inputs through the BIGM memory.
+        """
         self.BIGM_memory = int_array
 
     def _module_function(self, fun_idx, a, b):
+        """
+        Run m_i module function based on the function index.
+        """
         if fun_idx == 0:
             return self._module_READ(a, b)
         elif fun_idx == 1:
             return self._module_WRITE(a, b)
 
     def _interpret_register(self, registers):
+        """
+        Only read the first value of the register to reduce
+        computational complexity.
+        """
         return tf.slice(registers, [0, 0], [-1, 1])
 
     def _read_memory(self):
+        """
+        Interpret the highest density integer as the value of
+        that memory location.
+        """
         return tf.argmax(self.BIGM_memory, 1)
 
     def _module_READ(self, p_pointer, _):
+        """
+        READ module from paper.
+        """
         return tf.matmul(tf.transpose(self.BIGM_memory), p_pointer, name="o")
 
     def _module_WRITE(self, p_pointer, a_value):
+        """
+        WRITE modules from paper.
+        """
         J_ones = tf.ones([self.M_num_ints, 1])
         self.BIGM_memory = \
             tf.nn.softmax((tf.matmul(J_ones - p_pointer, tf.transpose(J_ones)) * self.BIGM_memory) + \

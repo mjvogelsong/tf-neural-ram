@@ -29,7 +29,8 @@ class Model(object):
         """
         Initialize the memory and registers.
         """
-        # Holds the temporary memory staged in the registers
+        # Holds the temporary memory staged in the registers.
+        # Right now, I'm assuming uniform density over integers.
         self.r_registers = tf.get_variable("r_registers",
             [self.R_num_registers, self.M_num_ints],
             initializer=tf.constant_initializer(1.0/self.M_num_ints))
@@ -74,8 +75,12 @@ class Model(object):
                 if step % self.report_interval == 0:
                     print('Step %d: loss = %.2f (%.3f sec)' %
                         (step, loss_value, duration))
-                    print("input_pl: %s" % feed_dict[input_pl])
-                    print("targets_pl: %s" % feed_dict[targets_pl])
+                    print("input_pl: %s" % \
+                        self._read_memory(feed_dict[input_pl]))
+                    print("targets_pl: %s" % \
+                        self._read_memory(feed_dict[targets_pl]))
+                    print("BIGM: %s" % \
+                        self._read_memory(mem_value))
                     print("BIGM: %s" % mem_value)
                     print("f: %s" % f_value)
                     '''
@@ -340,12 +345,12 @@ class Model(object):
         """
         return tf.slice(registers, [0, 0], [-1, 1])
 
-    def _read_memory(self):
+    def _read_memory(self, mem):
         """
         Interpret the highest density integer as the value of
         that memory location.
         """
-        return tf.argmax(self.BIGM_memory, 1)
+        return np.argmax(mem, axis=1)
 
     def _module_READ(self, p_pointer, _):
         """

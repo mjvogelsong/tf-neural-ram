@@ -368,3 +368,39 @@ class Model(object):
                 tf.transpose(J_ones)) * self.BIGM_memory) + \
                 tf.matmul(p_pointer, tf.transpose(a_value)))
         return tf.ones([self.M_num_ints, 1], name="o") / self.M_num_ints
+
+    def _module_ZERO(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_ONE(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_TWO(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_INC(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_ADD(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_SUB(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_DEC(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_LESS_THAN(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_LESS_OR_EQUAL_THAN(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_EQUALITY_TEST(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_MIN(self, p_pointer, a_value):
+        raise NotImplementedError
+
+    def _module_MAX(self, p_pointer, a_value):
+        raise NotImplementedError

@@ -6,7 +6,6 @@ import numpy as np
 
 from nram import dataset, tasks
 
-# pylint: disable=E1103
 class Model(object):
     def __init__(self, flags):
         self.batch_size = flags.batch_size
@@ -329,15 +328,6 @@ class Model(object):
         """
         self.BIGM_memory = int_array
 
-    def _module_function(self, fun_idx, a, b):
-        """
-        Run m_i module function based on the function index.
-        """
-        if fun_idx == 0:
-            return self._module_READ(a, b)
-        elif fun_idx == 1:
-            return self._module_WRITE(a, b)
-
     def _interpret_register(self, registers):
         """
         Only read the first value of the register to reduce
@@ -351,6 +341,18 @@ class Model(object):
         that memory location.
         """
         return np.argmax(mem, axis=1)
+
+    ####
+    # Module functions that operate over the registers
+    ####
+    def _module_function(self, fun_idx, a, b):
+        """
+        Run m_i module function based on the function index.
+        """
+        if fun_idx == 0:
+            return self._module_READ(a, b)
+        elif fun_idx == 1:
+            return self._module_WRITE(a, b)
 
     def _module_READ(self, p_pointer, _):
         """
